@@ -1,6 +1,6 @@
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 
 from sql_tools import SQL_TOOLS, SYSTEM_PROMPT
@@ -10,41 +10,51 @@ MODEL_PROVIDER = "google_genai"
 DB_FILE = "sample.db"
 
 
+def invoke_llm(llm) -> None:
+    # Call the model and print the full response at once
+    system_prompt = "Answer concisely."
+    user_prompt = "Tell me about the history of the Eiffel Tower."
+    response = llm.invoke(
+        [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
+    )
+    print(response.text)
+
+
+def stream_llm(llm) -> None:
+    # Stream the model response chunk by chunk
+    system_prompt = "Answer concisely."
+    user_prompt = "Tell me a story about a brave knight."
+    for chunk in llm.stream(
+        [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
+    ):
+        print(chunk.text, end="", flush=True)
+
+
 class MoveTarget(BaseModel):
     x: float
     y: float
     z: float
 
 
-def invoke_llm(llm, prompt) -> None:
-    # Call the model and print the full response at once
-    response = llm.invoke([HumanMessage(content=prompt)])
-    print(response.text)
-
-
-def stream_llm(llm, prompt) -> None:
-    # Stream the model response chunk by chunk
-    for chunk in llm.stream([HumanMessage(content=prompt)]):
-        print(chunk.text, end="", flush=True)
-
-
-def invoke_llm_structured(llm, prompt) -> None:
+def invoke_llm_structured(llm) -> None:
     # Call the model and parse the response into a MoveTarget
-    llm_structured = llm.with_structured_output(MoveTarget)
-    response = llm_structured.invoke([HumanMessage(content=prompt)])
+    system_prompt = "Respond with a JSON object"
+    user_prompt = "Move the robot to (1.5, -2.0, 0.5)"
+    structured_llm = llm.with_structured_output(MoveTarget)
+    response = structured_llm.invoke(
+        [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
+    )
     print(response)
 
 
-def invoke_llm_with_db(llm, prompt) -> None:
-    # Use SQL tools from sql_tools module
-    tools = SQL_TOOLS
-    system_prompt = SYSTEM_PROMPT
-    
+def invoke_llm_with_db(llm) -> None:
+    user_prompt = "営業部の人の社員IDを教えて"
+
     # Create agent
-    agent = create_agent(llm, tools, system_prompt=system_prompt)
+    agent = create_agent(llm, SQL_TOOLS, system_prompt=SYSTEM_PROMPT)
     
     # Execute agent
-    result = agent.invoke({"messages": [{"role": "user", "content": prompt}]})
+    result = agent.invoke({"messages": [{"role": "user", "content": user_prompt}]})
     
     # Extract text from the response
     content = result["messages"][-1].content
@@ -58,22 +68,11 @@ def invoke_llm_with_db(llm, prompt) -> None:
 def main() -> None:
     # Initialize the Gemini model
     llm = init_chat_model(MODEL_NAME, model_provider=MODEL_PROVIDER)
-
-    print("--- invoke ---")
-    prompt = "Tell me about the history of the Eiffel Tower"
-    invoke_llm(llm, prompt)
-
-    print("--- stream ---")
-    prompt = "Tell me a story about a brave knight"
-    stream_llm(llm, prompt)
-
-    print("--- structured ---")
-    structured_prompt = "Move the robot to (1.5, -2.0, 0.5)"
-    invoke_llm_structured(llm, structured_prompt)
-
-    print("--- SQL Agent ---")
-    prompt = "営業部の人の社員IDを教えて"
-    invoke_llm_with_db(llm, prompt)
+    
+    invoke_llm(llm)
+    stream_llm(llm)
+    invoke_llm_structured(llm)
+    invoke_llm_with_db(llm)
 
 
 if __name__ == "__main__":

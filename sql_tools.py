@@ -4,7 +4,8 @@ from pathlib import Path
 from langchain_core.tools import tool
 
 DB_FILE = "sample.db"
-SYSTEM_PROMPT = """あなたはSQLiteデータベースの専門家アシスタントです。
+SYSTEM_PROMPT = """
+あなたはSQLiteデータベースの専門家アシスタントです。
 
 重要な制約：
 - データベースは読み取り専用です
@@ -15,7 +16,8 @@ SYSTEM_PROMPT = """あなたはSQLiteデータベースの専門家アシスタ�
 1. 質問内容を理解したら、まずテーブル一覧を確認
 2. 必要に応じてスキーマを確認
 3. 適切なSELECTクエリを実行
-4. 結果を日本語でわかりやすく説明"""
+4. 結果を日本語でわかりやすく説明
+"""
 
 
 @tool
@@ -44,8 +46,8 @@ def sql_db_schema(table_names: str) -> str:
         cursor.execute(f"PRAGMA table_info({table_name})")
         columns = cursor.fetchall()
         schema_info.append(f"Table: {table_name}")
-        for col in columns:
-            schema_info.append(f"  - {col[1]} ({col[2]})")
+        for column in columns:
+            schema_info.append(f"  - {column[1]} ({column[2]})")
     
     connection.close()
     return "\n".join(schema_info)
